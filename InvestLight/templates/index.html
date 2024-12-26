@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BTC投资情绪灯</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            transition: background-color 0.5s ease;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background: none;
+            box-shadow: none;
+            padding: 0;
+        }
+        .main-content {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .side-content {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 20px;
+            height: fit-content;
+        }
+        .info-section {
+            margin: 0;
+            padding: 0;
+            background: none;
+            border: none;
+        }
+        .info-section ul {
+            margin: 10px 0;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #message, #quote, #price, #change {
+            margin: 5px 0;
+            padding: 5px;
+            border-radius: 5px;
+        }
+        #quote {
+            font-style: italic;
+        }
+        #price {
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        #change {
+            font-weight: bold;
+        }
+        .auto-refresh {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 20px;
+        }
+        .log-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+            font-family: monospace;
+            max-height: 200px;
+            overflow-y: auto;
+            text-align: left;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-bottom: 1px solid #ddd;
+        }
+        .log-time {
+            color: #666;
+            margin-right: 10px;
+        }
+        .new-data {
+            color: #4CAF50;
+        }
+        .cached-data {
+            color: #2196F3;
+        }
+        .mood-light {
+            width: 120px;
+            height: 120px;
+            margin: 10px auto;
+            position: relative;
+        }
+        
+        .bulb {
+            fill: currentColor;
+            stroke: #333;
+            stroke-width: 2;
+            transition: all 0.5s ease;
+        }
+
+        .bulb-inner {
+            fill: currentColor;
+            stroke: none;
+            opacity: 0.8;
+        }
+        
+        .glow-effect {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            animation: breathe 2.5s ease-in-out infinite;
+        }
+        
+        @keyframes breathe {
+            0%, 100% {
+                filter: drop-shadow(0 0 3px currentColor) brightness(0.9);
+            }
+            50% {
+                filter: drop-shadow(0 0 20px currentColor) brightness(1.2);
+            }
+        }
+        
+        .light-container {
+            text-align: center;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.9);
+        }
+        
+        .core-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            align-items: start;
+            margin: 10px 0;
+        }
+
+        .price-info {
+            text-align: left;
+            padding: 10px;
+        }
+
+        .message-info {
+            text-align: left;
+            padding: 10px;
+        }
+
+        .collapsible {
+            margin-top: 20px;
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+        }
+
+        .collapsible-header {
+            cursor: pointer;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            margin: 5px 0;
+        }
+
+        .collapsible-content {
+            display: none;
+            padding: 10px;
+        }
+
+        .collapsible-content.show {
+            display: block;
+        }
+
+        .mood-label {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin: 10px 0;
+            padding: 5px 15px;
+            border-radius: 15px;
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+        }
+        
+        .mood-color {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            
+            .side-content {
+                position: static;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-content">
+            <h1>BTC投资情绪灯</h1>
+            
+            <div class="light-container">
+                <div style="position: relative;">
+                    <svg class="mood-light" viewBox="0 0 100 100">
+                        <!-- 灯泡轮廓 -->
+                        <path class="bulb" d="M50 10
+                                            C30 10 20 25 20 40
+                                            C20 55 35 65 40 70
+                                            L40 80 L60 80 L60 70
+                                            C65 65 80 55 80 40
+                                            C80 25 70 10 50 10Z"/>
+                        
+                        <!-- 发光内层 -->
+                        <path class="bulb-inner" d="M50 12
+                                                   C32 12 22 26 22 40
+                                                   C22 54 36 63 41 68
+                                                   L41 78 L59 78 L59 68
+                                                   C64 63 78 54 78 40
+                                                   C78 26 68 12 50 12Z"/>
+                        
+                        <!-- 灯座 -->
+                        <path fill="#666" d="M40 80 L60 80 L58 85 L42 85 Z"/>
+                        <path fill="#888" d="M42 85 L58 85 L56 90 L44 90 Z"/>
+                    </svg>
+                    <!-- 添加发光效果层 -->
+                    <svg class="glow-effect" viewBox="0 0 100 100">
+                        <path class="bulb" d="M50 10
+                                            C30 10 20 25 20 40
+                                            C20 55 35 65 40 70
+                                            L40 80 L60 80 L60 70
+                                            C65 65 80 55 80 40
+                                            C80 25 70 10 50 10Z"
+                              style="fill: none; stroke: currentColor; stroke-width: 4; opacity: 0.5;"/>
+                    </svg>
+                </div>
+                <div class="mood-label">
+                    <span id="mood-text">等待数据...</span>
+                    <div class="mood-color" id="mood-color"></div>
+                </div>
+            </div>
+
+            <div class="core-info">
+                <div class="price-info">
+                    <div id="price"></div>
+                    <div id="change"></div>
+                </div>
+                <div class="message-info">
+                    <div id="message"></div>
+                    <div id="quote"></div>
+                </div>
+            </div>
+
+            <button onclick="updateMood(true)">刷新数据</button>
+            <div class="auto-refresh">数据每2分钟自动更新一次 | 上次更新: <span id="last-update">-</span></div>
+
+            <div class="collapsible">
+                <div class="collapsible-header" onclick="toggleSection('log')">
+                    📊 查看API调用日志
+                </div>
+                <div id="log-section" class="collapsible-content log-section">
+                    <div id="api-log"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="side-content">
+            <h2>🔍 运作机制说明</h2>
+            <div class="info-section">
+                <ul>
+                    <li><strong>数据来源：</strong>通过 CoinGecko API 实时获取比特币价格和24小时涨跌幅</li>
+                    <li><strong>更新频率：</strong>每2分钟自动刷新一次数据</li>
+                    <li><strong>颜色提示：</strong>
+                        <ul>
+                            <li>🔴 红色 (涨幅 ≥ 5%): 市场过热警告</li>
+                            <li>🟠 浅红色 (涨幅 ≥ 2%): 谨慎提示</li>
+                            <li>🔵 淡蓝色 (-2% < 波动 < 2%): 市场平稳</li>
+                            <li>🟢 浅绿色 (跌幅 ≥ 2%): 关注机会</li>
+                            <li>🟢 绿色 (跌幅 ≥ 5%): 可能存在机会</li>
+                        </ul>
+                    </li>
+                    <li><strong>情绪建议：</strong>根据涨跌幅度自动生成相应的投资建议</li>
+                    <li><strong>投资名言：</strong>随机显示投资大师名言，提供长期投资视角</li>
+                </ul>
+                <p><strong>使用建议：</strong>此工具旨在帮助投资者保持理性，避免情绪化交易。请结合其他分析工具做出投资决策。</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function addLogEntry(data, isNewData) {
+            const logDiv = document.getElementById('api-log');
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString();
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${isNewData ? 'new-data' : 'cached-data'}`;
+            
+            const logContent = `
+                <span class="log-time">[${timeStr}]</span>
+                <span>${isNewData ? '新数据' : '缓存数据'}</span><br>
+                <small>${JSON.stringify(data, null, 2)}</small>
+            `;
+            
+            logEntry.innerHTML = logContent;
+            
+            // 在顶部插入新日志
+            logDiv.insertBefore(logEntry, logDiv.firstChild);
+            
+            // 保持最多显示10条记录
+            while (logDiv.children.length > 10) {
+                logDiv.removeChild(logDiv.lastChild);
+            }
+        }
+
+        function updateMood(forceRefresh = false) {
+            const now = new Date();
+            document.getElementById('last-update').textContent = now.toLocaleTimeString();
+            
+            const url = forceRefresh ? '/get_btc_mood?force=1' : '/get_btc_mood';
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('message').textContent = data.message;
+                    } else {
+                        document.body.style.backgroundColor = data.color;
+                        // 更新所有相关元素的颜色
+                        document.querySelector('.bulb').style.color = data.color;
+                        document.querySelector('.bulb-inner').style.color = data.color;
+                        document.querySelector('.glow-effect').style.color = data.color;
+                        
+                        // 更新情绪文本和颜色说明
+                        let moodText = '';
+                        let colorName = '';
+                        const change = parseFloat(data.change.split(':')[1]);
+                        
+                        if (change >= 5) {
+                            moodText = '市场过热';
+                            colorName = '红色警示';
+                        } else if (change >= 2) {
+                            moodText = '偏热';
+                            colorName = '浅红色提醒';
+                        } else if (change <= -5) {
+                            moodText = '极度恐慌';
+                            colorName = '深绿色机会';
+                        } else if (change <= -2) {
+                            moodText = '恐慌';
+                            colorName = '浅绿色关注';
+                        } else {
+                            moodText = '平稳';
+                            colorName = '淡蓝色安全';
+                        }
+                        
+                        document.getElementById('mood-text').textContent = moodText;
+                        document.getElementById('mood-color').textContent = colorName;
+                        document.getElementById('mood-text').style.color = data.color;
+                        
+                        // 其他更新保持不变
+                        document.getElementById('message').textContent = data.message;
+                        document.getElementById('quote').textContent = data.quote;
+                        document.getElementById('price').textContent = data.price;
+                        document.getElementById('change').textContent = data.change;
+                        
+                        addLogEntry(data, data.cache_info === '新数据');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('message').textContent = '获取数据失败，请稍后再试';
+                    addLogEntry({error: error.toString()}, true);
+                });
+        }
+
+        // 页面加载时获取数据
+        updateMood();
+
+        // 确保之前的定时器被清除
+        if (window.moodTimer) {
+            clearInterval(window.moodTimer);
+        }
+
+        // 设置新的定时器并保存引用（120000ms = 2分钟）
+        window.moodTimer = setInterval(() => updateMood(), 120000);
+
+        function toggleSection(sectionId) {
+            const content = document.getElementById(`${sectionId}-section`);
+            content.classList.toggle('show');
+        }
+    </script>
+</body>
+</html> 
